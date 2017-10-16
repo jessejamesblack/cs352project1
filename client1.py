@@ -2,7 +2,7 @@
 
 # This is the CS 352 Spring 2017 Client for the 1st programming
 # project
- 
+
 
 import argparse
 import time

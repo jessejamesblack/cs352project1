@@ -7,6 +7,7 @@ import sys
 # these functions are global to the class and
 # define the UDP ports all messages are sent
 # and received from
+# Faris Arafat and Jesse-James Black
 
 def init(UDPportTx,UDPportRx):   # initialize your UDP socket here 
     pass 
