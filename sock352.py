@@ -13,13 +13,18 @@ def init(UDPportTx, UDPportRx):  # initialize your UDP socket here
 
 
 class socket:
-    def __init__(self):  # fill in your code here
-        return
+    def __init__(self, sock=None):  # fill in your code here
+        if sock is None:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            self.sock = sock
+        #return
 
     def bind(self, address):
         return
 
     def connect(self, address):  # fill in your code here
+        self.sock.connect((host, port))
         # bind
         # create SYN header
         # send the SYN packet A
@@ -54,4 +59,11 @@ class socket:
     def recv(self, nbytes):
         #reason for error is it's returning and int not socket
         bytesreceived = 0  # fill in your code here
-        return bytesreceived
+        chunks = []
+        while bytesreceived < nbytes:
+            chunk = self.sock.recv(min(nbytes - bytesreceived, 2048))
+            if chunk == '':
+                raise RuntimeError("broken")
+            chunks.append(chunk)
+            bytesreceived = bytesreceived + len(chunk)
+        return ''.join(chunks)
