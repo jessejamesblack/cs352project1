@@ -43,14 +43,15 @@ class socket:
     def close(self):  # fill in your code here
         return
 
-    def send(self, buffer):
+    def send(self, buffer): # fill in your code here
         # Create header
         # Send data
         # start timer
         # if time out send same packet again
-        bytessent = 0  # fill in your code here
+        bytessent = 0
         return bytesent
 
     def recv(self, nbytes):
+        #reason for error is it's returning and int not socket
         bytesreceived = 0  # fill in your code here
         return bytesreceived
