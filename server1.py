@@ -120,7 +120,7 @@ def main():
     if (lapsed_seconds > 0.0):
         print ("server1: received %d bytes in %0.6f seconds, %0.6f MB/s " % (filelen, lapsed_seconds,
                                                                              (filelen / lapsed_seconds) / (
-                                                                             1024 * 1024)))
+                                                                                 1024 * 1024)))
     else:
         print ("server1: received %d bytes in %d seconds, inf MB/s " % (filelen, lapsed_seconds))
     fd.close()
