@@ -42,23 +42,28 @@ def init(UDPportTx, UDPportRx):  # initialize your UDP socket here
         transmit = int(UDPportTx)
     sock.bind(('', rcv))
     sock.settimeout(2)
+    print("Init successful")
     return
 
 
 class socket:
 
     def __init__(self):  # fill in your code here
+        print("Socket complete")
         return
 
     def bind(self, address):
+        pass
         return
 
     def connect(self, address):  # fill in your code here
         global sock, sequenceNumber
+        print("Starting connection on %s" % transmit)
         sequenceNumber = int(random.randint(20, 100))
         header = self.__make_header(SOCK352_SYN, sequenceNumber, 0, 0)
         ACKFlag = -1
         while(ACKFlag != sequenceNumber):
+            print("%d bytes sent" % (sock.sendto(header,(address[0], transmit))))
             newHeader = self.__get_Packet()
             ACKFlag = newHeader[9]
         sock.connect((address[0], transmit))
@@ -71,6 +76,7 @@ class socket:
 
     def accept(self):  # change this to your code
         global sock, rcv, sequenceNumber
+        print("Waiting on %s\n" % rcv)
         flag = -1
         newHeader = ""
         while(flag != SOCK352_SYN):
@@ -80,6 +86,7 @@ class socket:
         header = self.__make_header(SOCK352_ACK, 0, sequenceNumber, 13)
         sock.sendto(header + "accepted", hostAddress)
         sequenceNumber += 1
+        print("Target acquired")
         clientsocket = socket()
         return (clientsocket, hostAddress)
 
@@ -95,6 +102,7 @@ class socket:
                 sock.send(header)
             newHeader = self.__get_Packet()
             ACKFlag = newHeader[9]
+        print("Connection closed")
         sock.close()
         return
 
@@ -119,6 +127,8 @@ class socket:
             buffer = buffer[255:]
             bytessent += temp
             sequenceNumber += 1
+
+        print("%d total bytes sent" % bytessent)
         return bytessent
 
     def recv(self, bytesreceived):
@@ -140,6 +150,7 @@ class socket:
             bytesreceived -= len(dataSent)
 
             sequenceNumber += 1
+        print("Finished RECV")
         return sendMessage
 
     def __get_Packet(self):
