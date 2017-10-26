@@ -1,101 +1,80 @@
+
 import binascii
 import socket as syssock
 import struct
 import sys
-from collections import namedtuple
-import time
-from Queue import *
-from random import *
-import math
-import packetHeader
-import packet
+import random
 
 # these functions are global to the class and
 # define the UDP ports all messages are sent
 # and received from
 
-socketTimeout = 0.2
-packetSize = 5000
+# init stuff
+transmit = -1
+recv = -1
+socket = (0, 0)
+hostAddress = ""
+sequenceNumber = 0
+packetHeaderData = "!8BLLBB"
+version = 0x1
+pointer = 0x0
+protocol = 0x0
+checksum = 0x0
+sourcePort = 0x0
+destPort = 0x0
+window = 0x0
+headerLength = 18
+dataSent = ""
 
-HeaderData = '!BBBBHHLLQQLL'
-UnPackedHeaderData = struct.Struct(HeaderData)
-
-headerLength = struct.calcsize(packetSize)
-
-SYNFlag = 0x1
-FINFlag = 0x2
-ACKFlag = 0x4
-RESETFlag = 0x8
-HASOPTFlag = 0xA0
+# defines all UDP ports
 
 
-def init(UDPportTx, UDPportRx):  # initialize your UDP socket here
-    global udpSock
-    udpSock = syssock.socket(syssock.AF_INET, syssock.SOCK_DGRAM)
-
-    if udpSock is None:
-        print "Socket not created"
+def init(UDPportTx, UDPportRx):   # initialize your UDP socket here
+    global socket, transmit, recv
+    # create a UDP/datagram socket
+    # bind the port to the Rx (receive) port number
+    socket = syssock.socket(syssock.AF_INET, syssock.SOCK_DGRAM)
+    recv = int(UDPportRx)
+    if UDPportTx == '':
+        transmit = recv
     else:
-        print "Socket created successfully"
-    #
-    if UDPportTx < 1 or UDPportTx > 65535:
-        UDPportTx = 27182
-    if UDPportRx < 1 or UDPportRx > 65535:
-        UDPportRx = 27182
+        transmit = int(UDPportTx)
+    socket.bind(('', recv))
+    # Our protocol defines a timeout of 0.2 seconds
+    socket.settimeout(0.2)
+    print('Initialization complete!')
+    pass
 
 
 class socket:
+
     def __init__(self):  # fill in your code here
-        # self.sock = socket
-        self.connections = []
-        self.backlog = []
-        self.connected = False
-        self.last_acked = 0
-        self.next_seq_num = 0
-        self.next_ack_no = 0
-        self.initial_seq_no = 0
+        print("New Socket created")
         return
 
     def bind(self, address):
-        udpSock.setsockopt(syssock.SOL_SOCKET, syssock.SO_REUSEADDR, 1)
-        udpSock.bind(address)
+        print("Binding")
         return
 
     def connect(self, address):  # fill in your code here
-        self.initial_seq_no = randint(0, (math.pow(2, 64) - 1))
-        self.ack_number = 0
-        syn_packet = packet()
-        syn_packet.create_syn(self.initial_seq_no)
-        packed_syn_packet = syn_packet.packPacked()
-        while True:
-            udpSock.sendto(packed_syn_packet, address)
-            print "Address: ", address
-            try:
-                udpSock.settimeout(socketTimeout)
-                raw_paclet, sender = udpSock.recvfrom(packetSize)
-                break;
-            except syssock.timeout:
-                time.sleep(5)
-            finally:
-                udpSock.settimeout(None)
-        recieved_packet_header = recieved_packet_header(raw_packet[:40])
+        global socket, sequenceNumber
 
-        if (recieved_packet_header.flags != 5
-            or recieved_packet_header.ack_no != (syn_packet.header.sequence_no + 1)):
-            print "error"
-        else:
-            self.connected = True
-            self.connections.append(address)
-            self.next_seq_num = recieved_packet_header.ack_no
-            self.last_acked = recieved_packet_header.ack_no - 1
-            print "connected"
-        # bind
-        # create SYN header
-        # send the SYN packet A
-        # start the timer
-        # recv SYN ACK B
-        # send ACK C
-        # if there is an error send header again
+        # create sequence number
+        sequenceNumber = int(random.randint(20, 100))
+
+        # create header for packet  with SYN flags
+        packetHeader = self.makeHeader(0x01, sequenceNumber, 0, 0)
+        ackFLAG = -1
+
+        # set the timeout, wait for SYN, retransmit if needed
+        while(ackFLAG != sequenceNumber):
+            print("New connection being made")
+            newHeader = self.getPacket()
+            ackFLAG = newHeader[9]
+
+        socket.connect((address[0], transmit))
+
+        sequenceNumber += 1
         return
 
     def listen(self, backlog):
@@ -103,129 +82,148 @@ class socket:
         return
 
     def accept(self):
-        # print self.address
-        # recv SYN A
-        # send SYN ACK B
-        # ACK C
-        while True:
+        global socket, recv, sequenceNumber
+
+        print("Waiting connection")
+        flag = -1
+        newHeader = ""
+
+        # call get packet
+        while(flag != 0x01):
+            newHeader = self.getPacket()
+            flag = newHeader[1]
+        sequenceNumber = newHeader[8]
+        # ACK
+        header = self.makeHeader(0x04, 0, sequenceNumber, 13)
+        socket.sendto(header + "accepted", hostAddress)
+
+        # accept new datagrams
+        sequenceNumber += 1
+        print("target acquired")
+        clientsocket = socket(0)
+        #(clientsocket, address) = (1, 1)  # change this to your code
+        return (clientsocket, hostAddress)
+
+    def close(self):   # fill in your code here
+        # send FIN
+        print("Goodbye")
+        # new header with random sequence number
+        termNumber = random.randint(7, 19)
+        header = self.makeHeader(0x02, termNumber, 0, 0)
+        ackFLAG = -1
+
+        # set timeout and wait for ACK, etc
+        while(ackFLAG != termNumber):
             try:
-                udpSock.settimeout(socketTimeout)
-                raw_packet, sender = udpSock.recvfrom(packetSize)
-                print sender
+                socket.sendto(header, hostAddress)
+            except TypeError:
+                socket.send(header)
+            newHeader = self.getPacket()
+            ackFLAG = newHeader[9]
 
-                recieved_packet_header = packetHeader(raw_packet[:40])
-                if (recieved_packet_header.flags != SYNFlag):
-                    print "Connection request refused"
-                else:
-                    break
-            except syssock.timeout:
-                print "Socket timed out"
-                time.sleep(5)
-                continue
-            finally:
-                udpSock.settimeout(None)
-
-        self.initial_seq_no = randint(0, (math.pow(2, 64) - 1))
-        self.last_acked = recieved_packet_header.sequence_no + recieved_packet_header.payload_len - 1
-        ack_packet = packet()
-        ack_packet.header.flags = (SOCK352_ACK + SOCK352_SYN)
-        ack_packet.header.sequence_no = self.initial_seq_no
-        packed_ack_packet = ack_packet.packPacket()
-        bytesSent = udpGlobalSocket.sendto(packed_ack_packet, sender)
-        print bytesSent
-
-        client_sock = self
-        client_sock.connections.append(sender)
-        return (client_sock, sender)
-        return (clientsocket, address)
-
-    def close(self):  # fill in your code here
-        FIN_packet = packet()
-        FIN_packet.header.flag = FINFlag
-        packed_FIN = FIN_packet.packPacket()
-        udpSock.sendto(packed_FIN, self.connections[0])
-        self.connections = []
-        self.backlog = []
-        self.connected = False
-        self.last_acked = 0
-        self.next_seq_num = 0
-        self.next_ack_no = 0
-        self.initial_seq_no = 0
+        socket.close()
         return
 
-    def send(self, buffer):  # fill in your code here
-        global sPort  # example using a variable global to the Python module
-        bytessent = 0  # fill in your code here
-        payload = buffer[:4096]
-        data_packet = packet()
-        data_packet.header.payload_len = len(payload)
-        data_packet.header.sequence_no = self.next_seq_num
-        data_packet.header.ack_no = self.next_ack_no
-        data_packet.payload = payload
+    def send(self, buffer):
+        global socket, headerLength, sequenceNumber
+        bytessent = 0     # fill in your code here
+        messageLength = len(buffer)
 
-        packed_data_packet = data_packet.packPacket()
-        while True:
-            bytesSent = udpSock.sendto(packed_data_packet, self.connections[0])
+        print("Sending")
+        while(messageLength > 0):
+            package = buffer[:255]
+            packageHeader = self.makeHeader(
+                0x03, sequenceNumber, 0, len(package))
+            temp = 0
+            ackFLAG = -1
+            while(ackFLAG != sequenceNumber):
+                temp = socket.send(packageHeader + package) - headerLength
+                newHeader = self.getPacket()
+                ackFLAG = newHeader[9]
 
-            try:
-                HeaderData.settimeout(socketTimeout)
-                raw_packet_header, sender = udpSock.recvfrom(headerLength)
-                recieved_packet_header = HeaderData(raw_packet_header)
-                if (recieved_packet_header.flags != ACKFlag or
-                            recieved_packet_header.ack_no != (
-                                    data_packet.header.sequence_no + data_packet.header.payload_len)):
-                    print "No ACK"
-                break
-
-            except syssock.timeout:
-                print "Timed out Resending Packet"
-                continue
-
-            finally:
-                HeaderData.settimeout(None)
-
-        self.next_seq_num = recieved_packet_header.ack_no
-        self.last_acked = recieved_packet_header.ack_no - 1
-        self.next_ack_no = recieved_packet_header.ack_no + 1
-
-        print "Returning ", bytesSent
-        return bytesSent - headerLength
-
+            messageLength -= 255
+            buffer = buffer[255:]
+            bytessent += temp
+            sequenceNumber += 1
+        return bytessent
 
     def recv(self, nbytes):
-        print "bytes to recieve: ", nbytes
-        while True:
-            try:
-                udpSock.settimeout(socketTimeout)
-                raw_packet, sender = udpSock.recvfrom(5000)
-                recieved_packet_header = HeaderData(raw_packet[:40])
-                print "Packed Header: ", binascii.hexlify(raw_packet[:40])
-                print "Unpacked Header: ", UnPackedHeaderData.unpack(raw_packet[:40])
-                if (recieved_packet_header.flags > 0):
-                    if (recieved_packet_header.flags == FINFlag):
-                        udpSock.close()
-                        break;
+        global socket, dataSent, sequenceNumber
+        bytesreceived = 0     # fill in your code here
+        print("starting recv")
+        datasent = ""
 
-                else:
-                    break
+        message = ""
+        while(bytesreceived > 0):
+            num = -1
+            while(num != sequenceNumber):
+                newHeader = self.getPacket()
+                num = newHeader[8]
+                if(num != sequenceNumber):
+                    print("Error in recv")
 
-            except syssock.timeout:
-                print "Socket timed out"
+                header = self.makeHeader(0x04, 0, num, 0)
+                socket.sendto(header, hostAddress)
 
-            finally:
-                udpSock.settimeout(None)
+            message += datasent
+            bytesreceived -= len(datasent)
 
-        self.next_seq_num = recieved_packet_header.ack_no
-        self.last_acked = recieved_packet_header.ack_no - 1
-        self.next_ack_no = recieved_packet_header.ack_no + 1
+            sequenceNumber += 1
+        print("fin")
+        return message
 
-        payload = raw_packet[40: (40 + nbytes)]
-        print "payload length: ", len(payload)
+    # had to create a packet function
 
-        ack_packet = packet()
-        ack_packet.create_ack(recieved_packet_header)
-        print "Ack Packet Ack_NO: ", ack_packet.header.ack_no
-        packed_ack_packet = ack_packet.packPacket()
-        udpGlobalSocket.sendto(packed_ack_packet, sender)
+    def getPacket(self):
+        global socket, packetHeaderData, hostAddress, dataSent
 
-        return payload
+        try:
+            (data, senderAddress) = socket.recvfrom(4096)
+        except syssock.timeout:
+            print("error in timeout")
+            error = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            return error
+
+        (dataHeader, dataMessage) = (data[:18], data[18:])
+        header = struct.unpack(packetHeaderData, dataHeader)
+        flag = header[1]
+        if (flag == 0x01):
+            hostAddress = senderAddress
+            return header
+
+        elif (flag == 0x02):
+            termHeader = self.makeHeader(0x04, 0, header[8], 0)
+            socket.sendto(termHeader, senderAddress)
+            return header
+
+        elif(flag == 0x03):
+            dataSent = dataMessage
+            return header
+
+        elif(flag == 0x04):
+            return header
+
+        elif (flag == 0x08):
+            return header
+
+        else:
+            header = self.makeHeader(0x08, header[8], header[9], 0)
+
+            if(socket.sendto(header, senderAddress) > 0):
+                print("Reset")
+            else:
+                print("Failed")
+            return header
+
+    def makeHeader(self, flag, sequenceNumber, ACK, Payload):
+        global packetHeaderData, headerLength, version, pointer, protocol
+        global checksum, sourcePort, destPort, window
+
+        flag = flag
+        sequenceNumber = sequenceNumber
+        ACKNum = ACK
+        payloadLength = Payload
+
+        udpPkt_hdr_data = struct.Struct(packetHeaderData)
+
+        return udpPkt_hdr_data.pack(version, flag, pointer, protocol, headerLength, checksum, sourcePort, destPort, sequenceNumber, ACKNum, window, payloadLength)
