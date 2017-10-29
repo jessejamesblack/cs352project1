@@ -1,30 +1,3 @@
-SOCK352_RESET = 0x08
-SOCK352_HAS_OPT = 0xA0
-
-
-# this init function is global to the class and
-# defines the UDP ports all messages are sent
-# and received from.
-def init(UDPportTx, UDPportRx):
-    global mainSocket, transmitter, receiver
-
-    mainSocket = syssock.socket(syssock.AF_INET, syssock.SOCK_DGRAM)
-    receiver = int(UDPportRx)
-    if(UDPportTx == ''):
-        transmitter = receiver
-    else:
-        transmitter = int(UDPportTx)
-    mainSocket.bind(('', receiver))
-    mainSocket.settimeout(2)
-    return
-
-
-class socket:
-
-    def __init__(self):
-        return
-
-    def bind(self, address):
         pass
         return
 

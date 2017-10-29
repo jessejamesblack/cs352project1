@@ -3,6 +3,7 @@ import socket as syssock
 import struct
 import sys
 import random
+import math
 
 port = -1
 recv = -1
@@ -46,7 +47,7 @@ def init(UDPportTx, UDPportRx):     # initialize your UDP socket here
     else:
         port = int(UDPportTx)
     sock.bind(('', recv))
-    sock.settimeout(.5)
+    sock.settimeout(5)
     return
 
 
@@ -63,7 +64,7 @@ class socket:
         global sock, curr, sock352PktHdrData, header_len, version, opt_ptr, protocol, checksum, \
             source_port, dest_port, window
 
-        curr = int(random.randint(10, 200))
+        curr = random.randint(10, 100)
 
         header1 = struct.Struct(sock352PktHdrData)
 
@@ -125,7 +126,7 @@ class socket:
 
     def close(self):    # fill in your code here 
 
-        temp = random.randint(7, 19)
+        temp = random.randint(10, 100)
 
         ###################
         header1 = struct.Struct(sock352PktHdrData)
