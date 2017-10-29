@@ -9,7 +9,7 @@ receiver = -1
 mainSocket = (0, 0)
 otherHostAddress = ""
 currentSeqNo = 0
-sock352PktHdrData = "!8BLLBB"
+sock352PktHdrData = "!BBBBHHLLQQLL"
 
 
 version = 0x1
@@ -19,7 +19,7 @@ checksum = 0x0
 source_port = 0x0
 dest_port = 0x0
 window = 0x0
-header_len = 18
+header_len = 40
 deliveredData = ""
 
 SOCK352_SYN = 0x01
@@ -56,11 +56,23 @@ class socket:
         return
 
     def connect(self, address):
-        global mainSocket, currentSeqNo
+        global mainSocket, currentSeqNo, sock352PktHdrData, header_len, version, opt_ptr, protocol, checksum, \
+            source_port, dest_port, window
         print("Starting connection on %s" % (transmitter))
 
         currentSeqNo = int(random.randint(20, 100))
-        header = self.__make_header(0x01, currentSeqNo, 0, 0)
+
+        header1 = struct.Struct(sock352PktHdrData)
+
+        flags = 0x01
+        sequence_no = currentSeqNo
+        ack_no = 0
+        payload_len = 0
+
+        header = header1.pack(version, flags, opt_ptr, protocol,
+                                    header_len, checksum, source_port, dest_port, sequence_no,
+                                    ack_no, window, payload_len)
+
         ackFlag = -1
 
         while(ackFlag != currentSeqNo):
@@ -86,7 +98,18 @@ class socket:
             flag = newHeader[1]
         currentSeqNo = newHeader[8]
         # Acknowledge this new connection
-        header = self.__make_header(0x04, 0, currentSeqNo, 13)
+        ####################
+        header1 = struct.Struct(sock352PktHdrData)
+
+        flags = 0x04
+        sequence_no = 0
+        ack_no = currentSeqNo
+        payload_len = 13
+
+        header = header1.pack(version, flags, opt_ptr, protocol,
+                              header_len, checksum, source_port, dest_port, sequence_no,
+                              ack_no, window, payload_len)
+        ##################
         mainSocket.sendto(header + " accepted", otherHostAddress)
 
         currentSeqNo += 1
@@ -98,7 +121,20 @@ class socket:
     def close(self):
 
         terminal_no = random.randint(7, 19)
-        header = self.__make_header(0x02, terminal_no, 0, 0)
+
+        ###################
+        header1 = struct.Struct(sock352PktHdrData)
+
+        flags = 0x02
+        sequence_no = terminal_no
+        ack_no = 0
+        payload_len = 0
+
+        header = header1.pack(version, flags, opt_ptr, protocol,
+                              header_len, checksum, source_port, dest_port, sequence_no,
+                              ack_no, window, payload_len)
+
+        ####################
         ackFlag = -1
         while(ackFlag != terminal_no):
             try:
@@ -122,8 +158,19 @@ class socket:
 
         while(msglen > 0):
             parcel = buffer[:255]
-            parcelHeader = self.__make_header(
-                0x03, currentSeqNo, 0, len(parcel))
+
+            ######################
+            header1 = struct.Struct(sock352PktHdrData)
+
+            flags = 0x05
+            sequence_no = currentSeqNo
+            ack_no = 0
+            payload_len = len(parcel)
+
+            parcelHeader = header1.pack(version, flags, opt_ptr, protocol,
+                                  header_len, checksum, source_port, dest_port, sequence_no,
+                                  ack_no, window, payload_len)
+            ######################
             tempBytesSent = 0
             ackFlag = -1
             while(ackFlag != currentSeqNo):
@@ -152,7 +199,18 @@ class socket:
                 seq_no = newHeader[8]
                 if(seq_no != currentSeqNo):
                     print("Error in recv at %d" % currentSeqNo)
-                header = self.__make_header(0x04, 0, seq_no, 0)
+                ###############
+                header1 = struct.Struct(sock352PktHdrData)
+
+                flags = 0x04
+                sequence_no = 0
+                ack_no = currentSeqNo
+                payload_len = 0
+
+                header = header1.pack(version, flags, opt_ptr, protocol,
+                                      header_len, checksum, source_port, dest_port, sequence_no,
+                                      ack_no, window, payload_len)
+                ###############
                 mainSocket.sendto(header, otherHostAddress)
             fullMessage += deliveredData
             bytes_to_receive -= len(deliveredData)
@@ -164,7 +222,7 @@ class socket:
     def __sock352_get_packet(self):
         global mainSocket, sock352PktHdrData, otherHostAddress, deliveredData
         try:
-            (data, senderAddress) = mainSocket.recvfrom(4096)
+            (data, senderAddress) = mainSocket.recvfrom(5000)
         except syssock.timeout:
             print("No packets recived in timeout window!")
             z = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -180,7 +238,7 @@ class socket:
             z = [0,0,0,0,0,0,0,0,0,0,0,0]
             return z
         """
-        (data_header, data_msg) = (data[:18], data[18:])
+        (data_header, data_msg) = (data[:40], data[40:])
         header = struct.unpack(sock352PktHdrData, data_header)
         flag = header[1]
 
@@ -188,11 +246,22 @@ class socket:
             otherHostAddress = senderAddress
             return header
         elif(flag == 0x02):
-            terminalHeader = self.__make_header(0x04, 0, header[8], 0)
+            ###############
+            header1 = struct.Struct(sock352PktHdrData)
+
+            flags = 0x04
+            sequence_no = 0
+            ack_no = header[8]
+            payload_len = 0
+
+            terminalHeader = header1.pack(version, flags, opt_ptr, protocol,
+                                  header_len, checksum, source_port, dest_port, sequence_no,
+                                  ack_no, window, payload_len)
+            ###############
             mainSocket.sendto(terminalHeader, senderAddress)
             return header
 
-        elif(flag == 0x03):
+        elif(flag == 0x05):
             deliveredData = data_msg
             return header
         elif(flag == 0x04):
@@ -202,21 +271,21 @@ class socket:
             return header
 
         else:
-            header = self.__make_header(0x08, header[8], header[9], 0)
+
+            #####################
+            header1 = struct.Struct(sock352PktHdrData)
+
+            flags = 0x08
+            sequence_no = header[8]
+            ack_no = header[9]
+            payload_len = 0
+
+            header = header1.pack(version, flags, opt_ptr, protocol,
+                                  header_len, checksum, source_port, dest_port, sequence_no,
+                                  ack_no, window, payload_len)
+            #####################
             if(mainSocket.sendto(header, senderAddress) > 0):
                 print("Reset packet sent")
             else:
                 print("Reset packet failed to send")
             return header
-
-    def __make_header(self, givenFlag, givenSeqNo, givenAckNo, givenPayload):
-        global sock352PktHdrData, header_len, version, opt_ptr, protocol
-        global checksum, source_port, dest_port, window
-        flags = givenFlag
-        sequence_no = givenSeqNo
-        ack_no = givenAckNo
-        payload_len = givenPayload
-        udpPkt_hdr_data = struct.Struct(sock352PktHdrData)
-        return udpPkt_hdr_data.pack(version, flags, opt_ptr, protocol,
-                                    header_len, checksum, source_port, dest_port, sequence_no,
-                                    ack_no, window, payload_len)
