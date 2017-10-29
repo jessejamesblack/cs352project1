@@ -39,14 +39,19 @@ data = ''
 # and received from.
 def init(UDPportTx, UDPportRx):     # initialize your UDP socket here 
     global sock, port, recv
-
+    print("Waiting for client connection")
+    #create the socket
     sock = syssock.socket(syssock.AF_INET, syssock.SOCK_DGRAM)
     recv = int(UDPportRx)
+    #checks if empty
     if(UDPportTx == ''):
         port = recv
     else:
-        port = int(UDPportTx)
+        #creates the port
+        port = int(UDPportTx) 
+    #binds the socket to the port
     sock.bind(('', recv))
+    #sets the timeout
     sock.settimeout(5)
     return
 
@@ -64,26 +69,31 @@ class socket:
         global sock, curr, sock352PktHdrData, header_len, version, opt_ptr, protocol, checksum, \
             source_port, dest_port, window
 
+        #current sequence number set to a random int
         curr = random.randint(10, 100)
 
-        header1 = struct.Struct(sock352PktHdrData)
+        #create the header
+        header1 = struct.Struct(sock352PktHdrData)  
 
         flags = SOCK352_SYN
         sequence_no = curr
         ack_no = 0
         payload_len = 0
 
+        #create packet header
         header = header1.pack(version, flags, opt_ptr, protocol,
                                     header_len, checksum, source_port, dest_port, sequence_no,
                                     ack_no, window, payload_len)
 
         ACKFlag = -1
 
+        # create the packet 
         while(ACKFlag != curr):
-            print("Total sent %d" % (sock.sendto(header,(address[0], port))))
+            sock.sendto(header,(address[0], port))
             newHeader = self.packet()
             ACKFlag = newHeader[9]
 
+        #connect 
         sock.connect((address[0], port))
 
         curr += 1
@@ -105,6 +115,7 @@ class socket:
         curr = newHeader[8]
 
         ####################
+        # create a new header
         header1 = struct.Struct(sock352PktHdrData)
 
         flags = SOCK352_ACK
@@ -126,9 +137,11 @@ class socket:
 
     def close(self):    # fill in your code here 
 
+        #create temporary sequence number
         temp = random.randint(10, 100)
 
         ###################
+        # create a new header
         header1 = struct.Struct(sock352PktHdrData)
 
         flags = SOCK352_FIN
@@ -163,6 +176,7 @@ class socket:
             message = buffer[:255]
 
             ######################
+            # create a new header
             header1 = struct.Struct(sock352PktHdrData)
 
             flags = 0x05
@@ -201,6 +215,7 @@ class socket:
                 seq_no = newHeader[8]
             
                 ###############
+                # create new header
                 header1 = struct.Struct(sock352PktHdrData)
 
                 flags = SOCK352_ACK
@@ -217,26 +232,31 @@ class socket:
             nbytes -= len(data)
             
             curr += 1
-        print("Finished RECV")
+        print("Please wait")
         return bytesreceived 
 
+    # Packet class
     def packet(self):
         global sock, sock352PktHdrData, address, data
+        # attempts to recv packet if not will print error message
         try:
             (data, dest) = sock.recvfrom(8000)
         except syssock.timeout:
             print("Timeout window maxed")
             head = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             return head
+        # unpacks the 
         (data, message) = (data[:40], data[40:])
         header = struct.unpack(sock352PktHdrData, data)
         flag = header[1]
 
+        # checks serveral flag conditions as listed in the specs
         if(flag == SOCK352_SYN):
             address = dest
             return header
         elif(flag == SOCK352_FIN):
             ###############
+            # create header
             header1 = struct.Struct(sock352PktHdrData)
 
             flags = SOCK352_ACK
@@ -263,6 +283,7 @@ class socket:
         else:
 
             #####################
+            # create header
             header1 = struct.Struct(sock352PktHdrData)
 
             flags = SOCK352_RESET
