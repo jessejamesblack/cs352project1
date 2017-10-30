@@ -137,7 +137,7 @@ class socket:
         clientsocket = socket()
        # (clientsocket, address) = (1,1)     # change this to your code
         return (clientsocket, address)      
-
+    
     def close(self):    # fill in your code here 
 
         #create temporary sequence number
@@ -157,6 +157,7 @@ class socket:
                               ack_no, window, payload_len)
 
         ####################
+        # sets the timeout and waits to see if theres a FIN packet
         ACKFlag = -1
         while(ACKFlag != temp):
             try:
