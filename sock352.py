@@ -52,16 +52,18 @@ def init(UDPportTx, UDPportRx):     # initialize your UDP socket here
     #binds the socket to the port
     sock.bind(('', recv))
     #sets the timeout
-    sock.settimeout(5)
+    sock.settimeout(.2)
     return
 
 
 class socket:
 
     def __init__(self):     # fill in your code here 
+        #nothing needed here
         return
 
     def bind(self, address):
+        #not used for part of project
         pass
         return
 
@@ -110,6 +112,7 @@ class socket:
         newHeader = ""
 
         while(flag != SOCK352_SYN):
+            #call packet until we get a new connection
             newHeader = self.packet()
             flag = newHeader[1]
         curr = newHeader[8]
@@ -174,7 +177,8 @@ class socket:
 
         while(length > 0):
             message = buffer[:255]
-
+            #Take the top 255 bytes of the message because
+            #thats the max payload we represent with a "B"
             ######################
             # create a new header
             header1 = struct.Struct(sock352PktHdrData)
@@ -201,6 +205,7 @@ class socket:
             buffer = buffer[255:]
             bytessent += temp
             curr += 1
+        print("Segment of %d bytes was sent" % bytessent)
         return bytessent
 
     def recv(self, nbytes):
@@ -210,6 +215,8 @@ class socket:
         bytesreceived  = ""
         while(nbytes > 0):
             seq_no = -1
+            #Keep checking the incoming packets until we get
+            #one with the sequence number we specified eralier
             while(seq_no != curr):
                 newHeader = self.packet()
                 seq_no = newHeader[8]
@@ -220,7 +227,7 @@ class socket:
 
                 flags = SOCK352_ACK
                 sequence_no = 0
-                ack_no = curr
+                ack_no = seq_no
                 payload_len = 0
 
                 header = header1.pack(version, flags, opt_ptr, protocol,
@@ -232,7 +239,7 @@ class socket:
             nbytes -= len(data)
             
             curr += 1
-        print("Please wait")
+        print("Finished receiving the specified amount.")
         return bytesreceived 
 
     # Packet class
@@ -240,11 +247,12 @@ class socket:
         global sock, sock352PktHdrData, address, data
         # attempts to recv packet if not will print error message
         try:
-            (data, dest) = sock.recvfrom(8000)
+            (data, dest) = sock.recvfrom(4096)
         except syssock.timeout:
-            print("Timeout window maxed")
+            print("No packets received, timeout window maxed")
             head = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             return head
+
         # unpacks the 
         (data, message) = (data[:40], data[40:])
         header = struct.unpack(sock352PktHdrData, data)
