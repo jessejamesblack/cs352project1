@@ -188,7 +188,7 @@ class socket:
             ack_no = 0
             payload_len = len(message)
 
-            parcelHeader = header1.pack(version, flags, opt_ptr, protocol,
+            pHeader = header1.pack(version, flags, opt_ptr, protocol,
                                   header_len, checksum, source_port, dest_port, sequence_no,
                                   ack_no, window, payload_len)
             ######################
@@ -196,7 +196,7 @@ class socket:
             ACKFlag = -1
             while(ACKFlag != curr):
                 temp = sock.send(
-                    parcelHeader + message) - header_len
+                    pHeader + message) - header_len
 
                 newHeader = self.packet()
                 ACKFlag = newHeader[9]
